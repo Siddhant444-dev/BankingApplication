@@ -1,6 +1,5 @@
 package com.siddhant.BankingApplication.controller;
 
-import com.itextpdf.text.DocumentException;
 import com.siddhant.BankingApplication.entity.Transaction;
 import com.siddhant.BankingApplication.service.impl.BankStatement;
 import lombok.AllArgsConstructor;
@@ -9,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.FileNotFoundException;
 import java.util.List;
 
 @RestController

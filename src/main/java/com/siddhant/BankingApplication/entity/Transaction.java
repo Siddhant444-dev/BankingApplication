@@ -7,7 +7,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -21,7 +20,7 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String transactionId;
     private String accountNumber;
-    private String transactionType; // "credit" or "debit"
+    private String transactionType; // "credit" or "debit
     private BigDecimal amount;
     @CreationTimestamp
     private LocalDate createdAt;
