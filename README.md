@@ -1,4 +1,4 @@
-# 🏦 Banking Application API
+# 🏦 Banking Application 
 
 A modern, secure, and robust Spring Boot-based Banking REST API. This application provides core banking operations, including secure user authentication (JWT + BCrypt), account management, balance inquiries, fund transfers, real-time email notifications, and automated monthly/period bank statement compilation in PDF format emailed directly to customers.
 
@@ -85,17 +85,18 @@ The database contains two main entities: `users` and `transactions`.
 - **Request Payload:**
 ```json
 {
-  "firstName": "Siddhant",
-  "lastName": "Sinha",
-  "otherName": "Kumar",
+  "firstName": "Arjun",
+  "lastName": "Mehta",
+  "otherName": "Ravi",
   "gender": "Male",
-  "address": "123 Main Street",
-  "stateOfOrigin": "Bihar",
-  "email": "sidsinha491@gmail.com",
-  "password": "securepassword123",
-  "phoneNumber": "+919876543210",
-  "alternativePhoneNumber": "+918765432109"
+  "address": "45 Park Avenue",
+  "stateOfOrigin": "Maharashtra",
+  "email": "arjun.mehta@example.com",
+  "password": "newsecurepass456",
+  "phoneNumber": "+919812345678",
+  "alternativePhoneNumber": "+918123456789"
 }
+
 ```
 - **Response Payload:**
 ```json
@@ -103,9 +104,9 @@ The database contains two main entities: `users` and `transactions`.
   "responseCode": "002",
   "responseMessage": "Account created successfully",
   "accountInfo": {
-    "accountName": "Siddhant Sinha Kumar",
+    "accountName": "Arjun Mehta Ravi",
     "accountBalance": 0.00,
-    "accountNumber": "2026385921"
+    "accountNumber": "3057194826"
   }
 }
 ```
@@ -116,8 +117,8 @@ The database contains two main entities: `users` and `transactions`.
 - **Request Payload:**
 ```json
 {
-  "email": "sidsinha491@gmail.com",
-  "password": "securepassword123"
+  "email": "arjun.mehta@example.com",
+  "password": "newsecurepass456"
 }
 ```
 - **Response Payload:**
@@ -151,7 +152,7 @@ All requests below must include the authorization header:
   "responseCode": "004",
   "responseMessage": "Account found successfully",
   "accountInfo": {
-    "accountName": "Siddhant Sinha Kumar",
+    "accountName": "Arjun Mehta ",
     "accountBalance": 5000.00,
     "accountNumber": "2026385921"
   }
@@ -166,7 +167,7 @@ All requests below must include the authorization header:
   "accountNumber": "2026385921"
 }
 ```
-- **Response:** `Siddhant Sinha Kumar` (Plaintext String)
+- **Response:** `Arjun Mehta` (Plaintext String)
 
 #### 5. Credit Account
 - **Endpoint:** `POST /api/user/credit`
@@ -183,7 +184,7 @@ All requests below must include the authorization header:
   "responseCode": "005",
   "responseMessage": "Account credited successfully",
   "accountInfo": {
-    "accountName": "Siddhant Sinha Kumar",
+    "accountName": "Arjun Mehta",
     "accountBalance": 6500.00,
     "accountNumber": "2026385921"
   }
@@ -205,7 +206,7 @@ All requests below must include the authorization header:
   "responseCode": "007",
   "responseMessage": "Account debited successfully",
   "accountInfo": {
-    "accountName": "Siddhant Sinha Kumar",
+    "accountName": "Arjun Mehta",
     "accountBalance": 6000.00,
     "accountNumber": "2026385921"
   }
