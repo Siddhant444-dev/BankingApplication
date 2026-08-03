@@ -324,14 +324,3 @@ app.jwt-expiration=86400000
    ```
 
 ---
-
-## ⚠️ Important Developer Notes
-
-1. **Security Config / Path Mismatch:**
-   - In `SecurityConfig.java`, path `/api/auth/login` is permitted as public, but the actual login endpoint in `UserController.java` is mapped to `/api/user/login`. If login requests return a `403 Forbidden` response, update the `SecurityConfig` configuration matchers from `/api/auth/login` to `/api/user/login`.
-2. **Default Role:**
-   - Currently, all registering users are assigned the role `ROLE_ADMIN` by default in `UserServiceImpl.java`. Update this assignment logic if you wish to assign `ROLE_USER` or configure dynamic roles.
-3. **Database DDL:**
-   - `spring.jpa.hibernate.ddl-auto` is set to `update`. In a production environment, change this value to `validate` or `none` and use migration tools like Flyway or Liquibase.
-4. **Statement Save Location:**
-   - The PDF statement generator saves files locally to `C:\Users\Public\Documents\MyStatement.pdf`. Ensure this directory path exists and has appropriate write permissions. Change this directory value in `BankStatement.java` if deploying on Linux/macOS.
