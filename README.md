@@ -287,16 +287,25 @@ app.jwt-expiration=86400000
 ## 🚀 Running the Application
 
 ### Running Locally
-1. Create a MySQL database named `bank`.
-2. Build the project using Maven:
+1. Clone the repository and navigate to the project directory:
+   ```bash
+   git clone https://github.com/Siddhant444-dev/BankingApplication.git
+   cd BankingApplication
+   ```
+2. Create a MySQL database named `bank`.
+3. Build the project using Maven:
    ```bash
    mvn clean package
    ```
-3. Run the application:
+4. Run the application:
+   ```bash
+   mvn spring-boot:run
+   ```
+   or
    ```bash
    java -jar target/BankingApplication-0.0.1-SNAPSHOT.jar
    ```
-4. Access the API documentation at:
+5. Access the API documentation at:
    - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
 ### Running with Docker
