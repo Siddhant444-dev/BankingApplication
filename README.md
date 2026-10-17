@@ -1,326 +1,156 @@
-# 🏦 Banking Application 
+# SecureSearch Cloud
 
-A modern, secure, and robust Spring Boot-based Banking REST API. This application provides core banking operations, including secure user authentication (JWT + BCrypt), account management, balance inquiries, fund transfers, real-time email notifications, and automated monthly/period bank statement compilation in PDF format emailed directly to customers.
+**SecureSearch Cloud** is an educational, full-stack prototype for searching encrypted PDF documents. It combines a Spring Boot REST API, a browser-based cryptography client, persistent storage, and a repeatable synthetic benchmark. The browser encrypts document bytes and filenames before upload, derives deterministic HMAC-SHA-256 keyword tokens locally, and sends only those opaque tokens for search.
 
----
+> **Research prototype—not production-ready.** The API is a single-user, unauthenticated demo; do not expose it publicly or upload sensitive real documents. Searchable encryption intentionally leaks equality/repeated-query and access/result patterns. See [Security model and limitations](#security-model-and-limitations).
 
-## 🛠️ Technology Stack
+The repository's original banking API is retained. SecureSearch is the default landing experience; banking endpoints continue to use the existing JWT security rules.
 
-- **Framework:** Spring Boot 3.5.0 (Java 21)
-- **Security:** Spring Security (BCrypt password hashing) & JWT (JSON Web Tokens)
-- **Database & ORM:** MySQL Database with Spring Data JPA & Hibernate
-- **Build Tool:** Apache Maven
-- **PDF Generation:** iTextPDF (v5.5.13.4)
-- **Email System:** Spring Boot Starter Mail (SMTP)
-- **API Documentation:** Springdoc OpenAPI / Swagger UI (v2.8.8)
-- **Containerization:** Docker
+## Features
 
----
+- Browser-side **AES-256-GCM** encryption of PDF contents and filenames, each with a fresh 96-bit nonce.
+- Client-side key derivation using **PBKDF2-HMAC-SHA-256** (310,000 iterations; 128-bit workspace salt), with separate 256-bit AES and HMAC keys.
+- A blind keyword index containing fixed-length HMAC tokens rather than plaintext words; search uses exact token lookup and **AND semantics** for all query words.
+- Encrypted downloads are decrypted only in the browser.
+- An interactive benchmark comparing plaintext and HMAC-indexed in-memory lookup across 1,000, 10,000, and 50,000 synthetic documents.
+- Local H2 development storage and a PostgreSQL Docker Compose configuration.
+- Spring Boot REST endpoints with input validation and tests.
 
-## 📐 System Architecture
+## Technology
 
-Below is a diagram illustrating the high-level architecture of the application:
+- Java 21, Spring Boot 3.5, Spring Web, Spring Data JPA and Spring Security
+- H2 for local development; PostgreSQL 16 for the Compose environment
+- Browser Web Crypto API (vanilla JavaScript frontend; no frontend build step)
+- Maven Wrapper
 
-```mermaid
-graph TD
-    Client[Client / Postman / Swagger UI] <--> Controller[Controller Layer<br>UserController / TransactionController]
-    Controller <--> Security[Security Config & JWT Filters]
-    Security <--> Service[Service Layer<br>UserServiceImpl / TransactionImpl / BankStatement]
-    Service <--> Utils[Utilities<br>AccountUtils]
-    Service <--> Repository[Repository Layer<br>UserRepository / TransactionRepository]
-    Repository <--> DB[(MySQL Database)]
-    Service -.-> Mail[Spring Mail Sender]
-    Mail -.-> Email[(Recipient Email Address)]
+The original project also retains its MySQL driver, banking services, JWT authentication, mail support, and existing endpoints.
+
+## Run locally
+
+### Prerequisites
+
+- JDK 21 (not only a Java runtime)
+- Internet access on the first Maven build so the wrapper can download Maven and dependencies
+
+```bash
+git clone https://github.com/Siddhant444-dev/BankingApplication.git
+cd BankingApplication
+chmod +x mvnw
+./mvnw test
+./mvnw spring-boot:run
 ```
 
----
+Open [http://localhost:8080](http://localhost:8080). Local development uses a persistent H2 database at `./data/securesearch` by default. The first visit prompts you to set a passphrase of at least 12 characters. The workspace salt and a passphrase verifier are stored in this browser's local storage; the passphrase itself is not stored or sent to the server.
 
-## 🌟 Key Features
+**Keep the same browser profile and do not clear site storage:** the salt is not stored on the server, and there is no key recovery or salt migration yet. Losing it means losing access to files encrypted under that workspace.
 
-1. **Secure Registration & Auth:** Registration with BCrypt encrypted passwords. Logins are protected and return a JWT access token.
-2. **Auto-Generated Account Numbers:** Seamless, unique 10-digit account numbers generated via `Current Year` + `6-digit random number`.
-3. **Core Banking Transactions:**
-   - **Credit:** Deposit money into any active account.
-   - **Debit:** Withdraw money with real-time balance checks to prevent overdrafts.
-   - **Transfer:** Secure peer-to-peer transfers with real-time updates for both sender and receiver.
-4. **Automated PDF Statements:** Retrieve transaction logs between specified dates, compile them into a formatted PDF using iTextPDF, save them locally, and automatically send them to the account holder's registered email.
-5. **Real-time Email Alerts:** Direct email alerts for account creation, successful logins, debits, and credits.
+### PostgreSQL with Docker Compose
 
----
+Set a unique database password and JWT secret in your deployment environment (or a local `.env` file ignored by Git), then run:
 
-## 🗄️ Database Schema
-
-The database contains two main entities: `users` and `transactions`.
-
-### 1. User Entity (`users` table)
-- `id` (Long, PK, Auto-increment)
-- `firstName`, `lastName`, `otherName` (String)
-- `gender`, `address`, `stateOfOrigin` (String)
-- `accountNumber` (String, Unique)
-- `accountBalance` (BigDecimal)
-- `role` (Enum: `ROLE_USER`, `ROLE_ADMIN`)
-- `email` (String, Unique)
-- `password` (String)
-- `phoneNumber`, `alternativePhoneNumber` (String)
-- `status` (String: e.g., `"ACTIVE"`)
-- `createdAt`, `modifiedAt` (LocalDateTime)
-
-### 2. Transaction Entity (`transactions` table)
-- `transactionId` (String, PK, UUID)
-- `accountNumber` (String)
-- `transactionType` (String: `"CREDIT"` or `"DEBIT"`)
-- `amount` (BigDecimal)
-- `status` (String: `"success"` or `"failed"`)
-- `createdAt`, `modifiedAt` (LocalDate)
-
----
-
-## 🔌 API Endpoints Documentation
-
-### Authentication & Account Creation
-
-#### 1. Create User Account
-- **Endpoint:** `POST /api/user`
-- **Access:** Public
-- **Request Payload:**
-```json
-{
-  "firstName": "Arjun",
-  "lastName": "Mehta",
-  "otherName": "Ravi",
-  "gender": "Male",
-  "address": "45 Park Avenue",
-  "stateOfOrigin": "Maharashtra",
-  "email": "arjun.mehta@example.com",
-  "password": "newsecurepass456",
-  "phoneNumber": "+919812345678",
-  "alternativePhoneNumber": "+918123456789"
-}
-
+```bash
+export POSTGRES_PASSWORD='replace-with-a-long-random-password'
+export JWT_SECRET="$(openssl rand -base64 32)"
+docker compose up --build
 ```
-- **Response Payload:**
+
+The application is available at `http://localhost:8080`. Compose stores database state in the `securesearch-db` volume. `JWT_SECRET` protects the retained banking API; it is separate from the client-side SecureSearch keys. The default Compose values are development placeholders and must be overridden before any shared deployment. Configure HTTPS/TLS at a trusted reverse proxy for anything beyond local testing.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `jdbc:h2:file:./data/securesearch;DB_CLOSE_ON_EXIT=FALSE` | JDBC connection URL |
+| `DATABASE_USERNAME` / `DATABASE_PASSWORD` | `sa` / empty | Database login |
+| `DATABASE_DRIVER` | `org.h2.Driver` | JDBC driver class; use `org.postgresql.Driver` with PostgreSQL |
+| `JWT_SECRET` | Development-only sample | Base64 HMAC signing key for the original banking API |
+| `JWT_EXPIRATION` | `86400000` | Banking JWT lifetime in milliseconds |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` | Gmail SMTP defaults / empty credentials | Existing banking email feature |
+
+## Demo walkthrough
+
+1. Open the app in one browser profile and enter a strong passphrase (12+ characters; a randomly generated phrase is recommended).
+2. Choose a PDF no larger than 10 MiB. Add comma-separated tags such as `policy, renewal, 2025` and upload.
+3. Observe the encrypted filename and content being stored, and the derived token(s) being indexed. The server does not parse the PDF or receive plaintext tags.
+4. Search for one or more tags. Search is case-normalized and uses AND semantics; every term must match for a document to appear.
+5. Download a result. The browser fetches ciphertext and decrypts it locally.
+6. Run **Search performance** to compare synthetic lookup latency and estimated key/value storage at three scales.
+7. Open **Privacy model** to review the intended leakage and limitations.
+
+The tags are user-provided. PDF text extraction is deliberately not performed: doing so on the server would expose plaintext to the storage/search service. A production client could extract locally with PDF.js before the terms are submitted to the browser-side tokenization function.
+
+## API
+
+All SecureSearch routes are under `/api/secure-search` and are permitted by the existing Spring security configuration for this local demo. The static client uses them directly.
+
+| Method | Route | Purpose |
+|---|---|---|
+| `POST` | `/api/secure-search/documents` | Save AES-GCM ciphertext, encrypted name and opaque keyword tokens |
+| `GET` | `/api/secure-search/documents` | List encrypted summaries |
+| `POST` | `/api/secure-search/search` | Search by one or more 64-character HMAC hex tokens (AND match) |
+| `GET` | `/api/secure-search/documents/{id}` | Retrieve ciphertext and encrypted metadata |
+| `DELETE` | `/api/secure-search/documents/{id}` | Delete a document and its index entries |
+| `POST` | `/api/benchmarks/run` | Run synthetic in-memory lookup and estimated-storage comparison |
+
+Example encrypted upload shape (values are illustrative and must be valid base64 / tokens):
+
 ```json
 {
-  "responseCode": "002",
-  "responseMessage": "Account created successfully",
-  "accountInfo": {
-    "accountName": "Arjun Mehta Ravi",
-    "accountBalance": 0.00,
-    "accountNumber": "3057194826"
-  }
+  "encryptedName": "BASE64_AES_GCM_CIPHERTEXT",
+  "nameIv": "BASE64_12_BYTE_NONCE",
+  "contentIv": "BASE64_12_BYTE_NONCE",
+  "encryptedContent": "BASE64_AES_GCM_CIPHERTEXT",
+  "mediaType": "application/pdf",
+  "sizeBytes": 12345,
+  "keywordTokens": ["64_HEX_CHAR_HMAC_SHA256_TOKEN"]
 }
 ```
 
-#### 2. User Login
-- **Endpoint:** `POST /api/user/login`
-- **Access:** Public (See Developer Notes below)
-- **Request Payload:**
+Search accepts only the tokens; it has no plaintext query field:
+
 ```json
-{
-  "email": "arjun.mehta@example.com",
-  "password": "newsecurepass456"
-}
-```
-- **Response Payload:**
-```json
-{
-  "responseCode": "LOGIN_SUCCESS",
-  "responseMessage": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzaWRzaW5oYTQ5MUBnbWFpbC5jb20iLCJpYXQiOjE2ODg0MT...",
-  "accountInfo": null
-}
-```
-*Note: The JWT token is returned in the `responseMessage` field.*
-
----
-
-### Banking Operations (Requires Bearer Token)
-
-All requests below must include the authorization header:
-`Authorization: Bearer <your_jwt_token>`
-
-#### 3. Balance Enquiry
-- **Endpoint:** `GET /api/user/balanceEnquiry`
-- **Request Body:**
-```json
-{
-  "accountNumber": "2026385921"
-}
-```
-- **Response Payload:**
-```json
-{
-  "responseCode": "004",
-  "responseMessage": "Account found successfully",
-  "accountInfo": {
-    "accountName": "Arjun Mehta ",
-    "accountBalance": 5000.00,
-    "accountNumber": "2026385921"
-  }
-}
+{ "tokens": ["64_HEX_CHAR_HMAC_SHA256_TOKEN"] }
 ```
 
-#### 4. Name Enquiry
-- **Endpoint:** `GET /api/user/nameEnquiry`
-- **Request Body:**
-```json
-{
-  "accountNumber": "2026385921"
-}
-```
-- **Response:** `Arjun Mehta` (Plaintext String)
+## Security model and limitations
 
-#### 5. Credit Account
-- **Endpoint:** `POST /api/user/credit`
-- **Request Payload:**
-```json
-{
-  "accountNumber": "2026385921",
-  "amount": 1500.00
-}
-```
-- **Response Payload:**
-```json
-{
-  "responseCode": "005",
-  "responseMessage": "Account credited successfully",
-  "accountInfo": {
-    "accountName": "Arjun Mehta",
-    "accountBalance": 6500.00,
-    "accountNumber": "2026385921"
-  }
-}
+### What is protected
+
+- PDF bytes and filenames are AES-GCM encrypted in the browser. The API stores base64 ciphertext and nonces, not plaintext document data.
+- Search terms are lowercased/normalized in the browser and HMACed with a key derived from the passphrase. The backend validates fixed-length hex tokens and performs exact index lookups; it does not receive the original terms or the HMAC key.
+- Random nonces are generated independently for every encrypted name and PDF.
+
+### What leaks / what is not implemented
+
+- **Search-pattern leakage:** deterministic HMAC tokens let the server recognize repeated searches for the same term. The mapping from opaque tokens to actual words is not directly revealed, but frequency analysis may help an attacker guess common terms.
+- **Access-pattern leakage:** the server sees which encrypted document IDs match a token set, result counts, timing, and request cadence.
+- **Metadata leakage:** upload sizes, approximate document lengths, and timestamps are visible. The prototype does not pad ciphertext, batch results, or hide network metadata.
+- **No tenant/account authorization on SecureSearch routes:** anyone who can reach this demo API can list encrypted records, submit uploads, or delete records. Client-side encryption protects contents only while the key remains secret; it does not prevent denial of service or metadata observation. Do not expose this service publicly.
+- **Single-browser key management:** local storage holds a random salt and a verifier; there is no salt backup, multi-device sync, password reset, or key rotation. A wrong passphrase cannot decrypt existing content.
+- **User-supplied keywords:** indexing is limited to manually entered tags. Browser-side PDF text extraction, robust tokenization/stop-word policy, and multi-language normalization are future work.
+- **Prototype crypto composition:** the implementation demonstrates a simple client-side SSE pattern, not a reviewed or formally proven SSE construction. No forward privacy, oblivious RAM, public-key SSE, or formal leakage simulation is claimed.
+- **Benchmark scope:** the benchmark is synthetic, in-memory, single-process and precomputed. It times equivalent HashMap lookups after query tokens have already been prepared. Storage values are byte estimates. It excludes database/network costs, real-world concurrency, token-generation setup, PDF parsing, and end-to-end browser latency. It must not be presented as a production performance claim.
+
+For research comparisons, document the leakage profile and benchmark configuration alongside every result. A production system would need a reviewed SSE design, authenticated tenant-scoped APIs, TLS, stronger key lifecycle and recovery, abuse controls, database/network measurements, and independent security review.
+
+## Tests
+
+```bash
+./mvnw test
 ```
 
-#### 6. Debit Account
-- **Endpoint:** `POST /api/user/debit`
-- **Request Payload:**
-```json
-{
-  "accountNumber": "2026385921",
-  "amount": 500.00
-}
+The test suite runs against an in-memory H2 database and exercises the public SecureSearch API, including upload, exact blind-token matching, encrypted retrieval, and deletion.
+
+## Retained banking API
+
+Existing banking endpoints and JWT filtering remain in the project under `/api/user` and `/bankStatement`. They are separate from the SecureSearch prototype and still require appropriate database, mail, and account setup for meaningful operation. Their API documentation remains at `/swagger-ui/index.html`.
+
+## Project structure
+
+```text
+src/main/java/com/siddhant/BankingApplication/securesearch/  SecureSearch API, entities and benchmark
+src/main/resources/static/                                  Browser UI and Web Crypto client
+src/main/resources/application.properties                   Environment-driven local configuration
+src/test/java/...                                           Spring integration tests
+compose.yaml                                                 PostgreSQL + application
 ```
-- **Response Payload:**
-```json
-{
-  "responseCode": "007",
-  "responseMessage": "Account debited successfully",
-  "accountInfo": {
-    "accountName": "Arjun Mehta",
-    "accountBalance": 6000.00,
-    "accountNumber": "2026385921"
-  }
-}
-```
-
-#### 7. Fund Transfer
-- **Endpoint:** `POST /api/user/transfer`
-- **Request Payload:**
-```json
-{
-  "sourceAccountNumber": "2026385921",
-  "destinationAccountNumber": "2026999999",
-  "amount": 2000.00
-}
-```
-- **Response Payload:**
-```json
-{
-  "responseCode": "008",
-  "responseMessage": "Transfer successful",
-  "accountInfo": null
-}
-```
-
----
-
-### Transaction History & PDF Statement Generation
-
-#### 8. Generate and Email Statement
-- **Endpoint:** `GET /bankStatement`
-- **Access:** Authenticated (Requires Bearer Token)
-- **Query Parameters:**
-  - `accountNumber`: Target account number (e.g. `2026385921`)
-  - `startDate`: Start date in ISO format (`yyyy-MM-dd`)
-  - `endDate`: End date in ISO format (`yyyy-MM-dd`)
-- **Example Request URL:** `/bankStatement?accountNumber=2026385921&startDate=2026-08-01&endDate=2026-08-31`
-- **Behavior:**
-  1. Filters transactions for the specified account within the date range.
-  2. Compiles a transaction table into a PDF file at `C:\Users\Public\Documents\MyStatement.pdf`.
-  3. Sends an email to the user's registered address with the PDF statement attached.
-  4. Returns the JSON list of transaction records found.
-
----
-
-## ⚙️ Configuration & Setup
-
-### 1. Prerequisites
-- **Java:** SDK 21
-- **Maven:** installed (or use `./mvnw`)
-- **MySQL Database:** Local or Cloud instance
-
-### 2. Properties Setup (`src/main/resources/application.properties`)
-Update the following settings to match your local development environment:
-
-```properties
-# Database Configurations
-spring.datasource.url=jdbc:mysql://localhost:3306/bank
-spring.datasource.username=root
-spring.datasource.password=your_database_password
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.jpa.hibernate.ddl-auto=update
-
-# SMTP Mail Configurations (e.g. Gmail SMTP)
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=your_gmail_username@gmail.com
-spring.mail.password=your_gmail_app_password
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
-
-# JWT Configurations
-app.jwt-secret=your_base64_encoded_hmac_sha_key_at_least_256_bits
-app.jwt-expiration=86400000
-```
-
----
-
-## 🚀 Running the Application
-
-### Running Locally
-1. Clone the repository and navigate to the project directory:
-   ```bash
-   git clone https://github.com/Siddhant444-dev/BankingApplication.git
-   cd BankingApplication
-   ```
-2. Create a MySQL database named `bank`.
-3. Build the project using Maven:
-   ```bash
-   mvn clean package
-   ```
-4. Run the application:
-   ```bash
-   mvn spring-boot:run
-   ```
-   or
-   ```bash
-   java -jar target/BankingApplication-0.0.1-SNAPSHOT.jar
-   ```
-5. Access the API documentation at:
-   - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-
-### Running with Docker
-1. Build the application jar file:
-   ```bash
-   mvn clean package
-   ```
-2. Build the Docker image:
-   ```bash
-   docker build -t banking-app .
-   ```
-3. Run the container (make sure to update DB host to reach your MySQL server):
-   ```bash
-   docker run -p 8080:8080 --name banking-app-container banking-app
-   ```
-
----
